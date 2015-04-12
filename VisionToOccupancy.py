@@ -15,6 +15,7 @@ class occupancyGrid():
         self.m = 10 # set this manually
         self.grid = np.zeros((self.n,self.m))
         self.occupancyGrid = np.zeros((self.n,self.m))
+        self.mapAsString = ""
 
     def parseMap(self,theMap):
         splitMap = filter(None,re.split("/+",theMap)) #split by / and also remove empty spaces created by split    
@@ -75,30 +76,28 @@ class occupancyGrid():
                 if self.occupancyGrid[i][j] < 0:
                     self.occupancyGrid[i][j] = 0
 
-
-    #choose what kind of message I am publishing
-    #can I publish and listen at the same time?
-    #to publish numpy stuff, use numpy_msg() wrapper
     def publish(self):
-        pub = rospy.Publisher('publishToDalitso', String, queue_size=10) #where do I publish?
+        pub = rospy.Publisher('gridPub', OccupancyGrid, queue_size=10)
         rate = rospy.Rate(10) #appropriate rate?
         while not rospy.is_shutdown():
-           hello_str = "hello world %s" % rospy.get_time()
-           rospy.loginfo(hello_str)
-           pub.publish(hello_str)
+           pub.publish(self.occupancyGrid)
            rate.sleep()
 
+    def callback(data):
+        self.mapAsString = data.data
+        updateOccupancyGrid(self.mapAsString)
+
     def listen(self):
-        rospy.Subscriber("subscribeToYousif", String, callback)#where do I subscribe?
+        rospy.Subscriber("machineVision", String, callback)
 
         # spin() simply keeps python from exiting until this node is stopped
         rospy.spin()
 
 if __name__ == '__main__':
-##    rospy.init_node('myName', anonymous=True)
+    rospy.init_node('myName', anonymous=True)
     grid = occupancyGrid()
-##    try:
-##       talker()
-##    except rospy.ROSInterruptException:
-##       pass                
-    
+    try:
+       grid.listen()
+       grid.publish()
+    except rospy.ROSInterruptException:
+       pass                
