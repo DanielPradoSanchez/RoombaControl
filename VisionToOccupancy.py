@@ -1,7 +1,7 @@
-#import rospy
-#from std_msgs.msg import String
+import rospy
+from std_msgs.msg import String
 
-#from rospy.numpy_msg import numpy_msg #check if this is possible
+from rospy.numpy_msg import numpy_msg #check if this is possible
 
 import numpy as np
 import re
@@ -65,9 +65,9 @@ class occupancyGrid():
             for i in range(self.n):
                 currentCell = currentlyOccupied[i][j]
                 if currentCell == 1:
-                    print i
-                    print j
-                    print "done"
+                    #print i
+                    #print j
+                    #print "done"
                     self.occupancyGrid[i][j] += 25
                 else:
                     self.occupancyGrid[i][j] += -40
@@ -76,28 +76,31 @@ class occupancyGrid():
                 if self.occupancyGrid[i][j] < 0:
                     self.occupancyGrid[i][j] = 0
 
-    def publish(self):
-        pub = rospy.Publisher('gridPub', OccupancyGrid, queue_size=10)
-        rate = rospy.Rate(10) #appropriate rate?
-        while not rospy.is_shutdown():
-           pub.publish(self.occupancyGrid)
-           rate.sleep()
+    #def publish(self):
+    #    pub = rospy.Publisher('gridPub', OccupancyGrid, queue_size=10)
+    #    rate = rospy.Rate(10) #appropriate rate?
+    #    while not rospy.is_shutdown():
+    #       pub.publish(self.occupancyGrid)
+    #       rate.sleep()
 
     def callback(data):
         self.mapAsString = data.data
         updateOccupancyGrid(self.mapAsString)
+        #pub.publish(self.occupancyGrid)
+        print self.occupancyGrid
 
-    def listen(self):
-        rospy.Subscriber("machineVision", String, callback)
 
-        # spin() simply keeps python from exiting until this node is stopped
-        rospy.spin()
+    #def listen(self):
+    #    rospy.Subscriber("machineVision", String, callback)
+    #    # spin() simply keeps python from exiting until this node is stopped
+    #    rospy.spin()
 
 if __name__ == '__main__':
-    rospy.init_node('myName', anonymous=True)
-    grid = occupancyGrid()
     try:
-       grid.listen()
-       grid.publish()
+        rospy.init_node('myName')
+        grid = occupancyGrid()
+        rospy.Subscriber("machineVision", String, grid.callback)
+        pub = rospy.Publisher('gridPub', OccupancyGrid, queue_size=10)
+        rospy.spin()
     except rospy.ROSInterruptException:
        pass                
