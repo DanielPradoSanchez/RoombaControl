@@ -11,11 +11,14 @@ import re
 class occupancyGrid():
     def __init__(self):
         # n rows, m columns
-        self.n = 5 # set this manually
-        self.m = 10 # set this manually
+        # 1920 width
+        # 1080 height
+        self.n = 1920 # set this manually
+        self.m = 1080 # set this manually
         self.grid = np.zeros((self.n,self.m))
         self.occupancyGrid = np.zeros((self.n,self.m))
         self.mapAsString = ""
+        self.nonZeroCells = set()
 
     def parseMap(self,theMap):
         splitMap = filter(None,re.split("/+",theMap)) #split by / and also remove empty spaces created by split    
@@ -37,17 +40,20 @@ class occupancyGrid():
         n = self.n
         m = self.m
         parsedMap = self.parseMap(mapping)
-        newGrid = self.generateBlankOccupancyGrid()
+        newGrid = set()
         for typeOfObject in parsedMap:
             for currentObject in parsedMap[typeOfObject]:
                 x = currentObject[0]
                 y = currentObject[1]
                 width = currentObject[2]
                 length = currentObject[3]
-                newGrid[y][x] = 1
-                for i in range(width + 1):
-                    for j in range(length + 1):
-                        newGrid[y + i][x + j] = 1
+                for i in range(width):
+                    for j in range(length):
+                        if x + i >= m or y + j >= n:
+                            pass
+                        else:
+                            newGrid.add((x + i,y + j))
+                            self.nonZeroCells.add((x + i,y + j))
         return newGrid
 
     def generateBlankOccupancyGrid(self):
@@ -58,23 +64,28 @@ class occupancyGrid():
 
     def updateOccupancyGrid(self, mapping):
         # n rows, m columns
-        increase = 0.25
-        decrease = 0.4
+        increase = 25
+        decrease = 40
         currentlyOccupied = self.convertMappingToOccupancyGrid(mapping)
-        for j in range(self.m):
-            for i in range(self.n):
-                currentCell = currentlyOccupied[i][j]
-                if currentCell == 1:
-                    #print i
-                    #print j
-                    #print "done"
-                    self.occupancyGrid[i][j] += 25
-                else:
-                    self.occupancyGrid[i][j] += -40
-                if self.occupancyGrid[i][j] > 100:
-                    self.occupancyGrid[i][j] = 100
-                if self.occupancyGrid[i][j] < 0:
-                    self.occupancyGrid[i][j] = 0
+        for previousNonZeroCell in self.nonZeroCells:
+            x = previousNonZeroCell[0]
+            y = previousNonZeroCell[1]
+            if previousNonZeroCell in currentlyOccupied:
+                self.occupancyGrid[y][x] += increase
+                currentlyOccupied.remove(previousNonZeroCell)
+                if self.occupancyGrid[y][x] > 100:
+                    self.occupancyGrid[y][x] = 100
+            else:
+                self.occupancyGrid[y][x] += -decrease
+                if self.occupancyGrid[y][x] < 0:
+                    self.occupancyGrid[y][x] = 0
+            
+        for currentlyOccupiedCell in currentlyOccupied:
+            x = currentlyOccupiedCell[0]
+            y = currentlyOccupiedCell[1]
+            self.occupancyGrid[y][x] += 25
+            if self.occupancyGrid[y][x] > 100:
+                self.occupancyGrid[y][x] = 100
 
     #def publish(self):
     #    pub = rospy.Publisher('gridPub', OccupancyGrid, queue_size=10)
