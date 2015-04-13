@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 import rospy
 from std_msgs.msg import String
 
@@ -125,10 +126,10 @@ class occupancyGrid():
 
     def callback(self, data):
         self.mapAsString = data.data
-        updateOccupancyGrid(self.mapAsString)
+        self.updateOccupancyGrid(self.mapAsString)
 
         #ros message header
-        occGrid = nav_msgs.msg.OccupancyGrid(header=rospy.Header())
+        occGrid = OccupancyGrid(header=rospy.Header())
         occGrid.header.stamp = rospy.Time.now()
 
         #ros metadata
