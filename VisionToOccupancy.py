@@ -2,6 +2,8 @@ import rospy
 from std_msgs.msg import String
 
 from rospy.numpy_msg import numpy_msg #check if this is possible
+from nav_msgs.msg import OccupancyGrid
+from geometry_msgs.msg import Pose, Point, Quaternion
 
 import numpy as np
 import re
@@ -94,10 +96,26 @@ class occupancyGrid():
     #       pub.publish(self.occupancyGrid)
     #       rate.sleep()
 
-    def callback(data):
+    def callback(self, data):
         self.mapAsString = data.data
         updateOccupancyGrid(self.mapAsString)
-        #pub.publish(self.occupancyGrid)
+
+        #ros message header
+        occGrid = nav_msgs.msg.OccupancyGrid(header=rospy.Header())
+        occGrid.header.stamp = rospy.Time.now()
+
+        #ros metadata
+        occGrid.info.resolution  = 1.0
+        occGrid.info.height = self.n
+        occGrid.info.width = self.m
+        occGrid.info.origin = Pose(Point(0, 0, 0.), Quaternion(0.0,0.0,0.0,1.0))
+
+        #2d to 1d iterator
+        it = self.occupancyGrid.flat
+        occGrid.data = list(it)
+
+        #publish to ros
+        self.pub.publish(occGrid)
         print self.occupancyGrid
 
 
@@ -110,8 +128,8 @@ if __name__ == '__main__':
     try:
         rospy.init_node('myName')
         grid = occupancyGrid()
+        grid.pub = rospy.Publisher('gridPub', OccupancyGrid, queue_size=10)
         rospy.Subscriber("machineVision", String, grid.callback)
-        pub = rospy.Publisher('gridPub', OccupancyGrid, queue_size=10)
         rospy.spin()
     except rospy.ROSInterruptException:
        pass                
