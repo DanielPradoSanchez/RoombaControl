@@ -13,14 +13,34 @@ import re
 class occupancyGrid():
     def __init__(self):
         # n rows, m columns
-        # 1920 width
-        # 1080 height
-        self.n = 1920 # set this manually
-        self.m = 1080 # set this manually
+        # 500 width
+        # 300 height
+        self.n = 300 # set this manually, 300
+        self.m = 500 # set this manually, 500
         self.grid = np.zeros((self.n,self.m))
         self.occupancyGrid = np.zeros((self.n,self.m))
         self.mapAsString = ""
         self.nonZeroCells = set()
+        self.permanentlyOccupiedCellCoordinatesWidthLength = [[1,1,2,2],[4,0,2,5]] # Needs to be set manually
+        self.permanentlyOccupiedCells = self.generatePermanentlyOccupiedCells(self.permanentlyOccupiedCellCoordinatesWidthLength)
+        for cell in self.permanentlyOccupiedCells:
+            x = cell[0]
+            y = cell[1]
+            self.occupancyGrid[y][x] = 100
+
+    def generatePermanentlyOccupiedCells(self,permanentlyOccupied):
+        setOfTuples = set()
+        for cell in permanentlyOccupied:
+            x = cell[0]
+            y = cell[1]
+            width = cell[2]
+            length = cell[3]
+            for dx in range(width):
+                for dy in range(length):
+                    newTuple = (x+dx,y+dy)
+                    setOfTuples.add(newTuple)
+        return setOfTuples
+    
 
     def parseMap(self,theMap):
         splitMap = filter(None,re.split("/+",theMap)) #split by / and also remove empty spaces created by split    
@@ -45,10 +65,17 @@ class occupancyGrid():
         newGrid = set()
         for typeOfObject in parsedMap:
             for currentObject in parsedMap[typeOfObject]:
-                x = currentObject[0]
-                y = currentObject[1]
-                width = currentObject[2]
-                length = currentObject[3]
+                if typeOfObject is "Table":
+                    x = currentObject[0]
+                    width = currentObject[2]
+                    length = width
+                    y = currentObject[1] + currentObject[3] - width
+                    
+                else:
+                    x = currentObject[0]
+                    y = currentObject[1]
+                    width = currentObject[2]
+                    length = currentObject[3]
                 for i in range(width):
                     for j in range(length):
                         if x + i >= m or y + j >= n:
@@ -77,7 +104,7 @@ class occupancyGrid():
                 currentlyOccupied.remove(previousNonZeroCell)
                 if self.occupancyGrid[y][x] > 100:
                     self.occupancyGrid[y][x] = 100
-            else:
+            elif previousNonZeroCell not in self.permanentlyOccupiedCells:
                 self.occupancyGrid[y][x] += -decrease
                 if self.occupancyGrid[y][x] < 0:
                     self.occupancyGrid[y][x] = 0
@@ -85,7 +112,7 @@ class occupancyGrid():
         for currentlyOccupiedCell in currentlyOccupied:
             x = currentlyOccupiedCell[0]
             y = currentlyOccupiedCell[1]
-            self.occupancyGrid[y][x] += 25
+            self.occupancyGrid[y][x] += increase
             if self.occupancyGrid[y][x] > 100:
                 self.occupancyGrid[y][x] = 100
 
