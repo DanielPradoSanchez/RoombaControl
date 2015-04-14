@@ -5,6 +5,8 @@ from std_msgs.msg import String
 from rospy.numpy_msg import numpy_msg #check if this is possible
 from nav_msgs.msg import OccupancyGrid
 from geometry_msgs.msg import Pose, Point, Quaternion
+from sensor_msgs.msg import PointCloud2, LaserScan #, PointField
+import sensor_msgs.point_cloud2 as pc2
 
 import numpy as np
 import re
@@ -29,6 +31,7 @@ class occupancyGrid():
             y = cell[1]
             self.occupancyGrid[y][x] = 100
 
+
     def generatePermanentlyOccupiedCells(self,permanentlyOccupied):
         setOfTuples = set()
         for cell in permanentlyOccupied:
@@ -52,7 +55,7 @@ class occupancyGrid():
             dataAsString = objectAndDataAsList[1:]
             data = []
             for i in dataAsString:
-                data.append(int(i))
+                data.append(int(float(i)))
             if objectType in mapping.keys():
                 mapping[objectType].append(data)
             else:
@@ -131,12 +134,13 @@ class occupancyGrid():
         #ros message header
         occGrid = OccupancyGrid(header=rospy.Header())
         occGrid.header.stamp = rospy.Time.now()
+        occGrid.header.frame_id = "map"
 
         #ros metadata
         occGrid.info.resolution  = 1.0
         occGrid.info.height = self.n
         occGrid.info.width = self.m
-        occGrid.info.origin = Pose(Point(0, 0, 0.), Quaternion(0.0,0.0,0.0,1.0))
+        occGrid.info.origin = Pose(Point(-5.0, -5.0, 0.), Quaternion(0.0,0.0,0.0,1.0))
 
         #2d to 1d iterator
         it = self.occupancyGrid.flat
@@ -144,8 +148,51 @@ class occupancyGrid():
 
         #publish to ros
         self.pub.publish(occGrid)
-        print self.occupancyGrid
+        #print self.occupancyGrid
 
+
+        ##now send a point cloud msg
+        header=rospy.Header()
+        header.stamp = rospy.Time.now()
+        header.frame_id = "base_laser_link"
+
+        # fields = [pc2.PointField("x", 0, pc2.PointField.FLOAT32, 1), 
+        #           pc2.PointField("y", 4, pc2.PointField.FLOAT32, 1), 
+        #           pc2.PointField("z" , 8, pc2.PointField.FLOAT32, 1), 
+        #           ]
+        points = []
+        for y in range(self.n):
+            for x in range(self.m):
+                points.append([x,y,0])
+
+        cloud = pc2.create_cloud_xyz32(header, points)
+        self.cloud.publish(cloud)
+        #cloud = pc2.create_cloud(header, fields, data)
+
+    def laserCallback(self, data):
+        l = LaserScan()
+        # l.header = header
+        # l.angle_min= -2.35837626457
+        # l.angle_max= 2.35837626457
+        # l.angle_increment= 0.00436736317351
+        # l.time_increment= 0.0
+        # l.scan_time = 0.0
+        # l.range_min = 0.0
+        # l.range_max =2.0
+
+        l.header = data.header
+        l.angle_min= data.angle_min
+        l.angle_max= data.angle_max
+        l.angle_increment= data.angle_increment
+        l.time_increment= data.time_increment
+        l.scan_time = data.scan_time
+        l.range_min = data.range_min
+        l.range_max = data.range_max
+
+        it = self.occupancyGrid.flat
+        l.ranges = data.ranges
+        l.intensities = list(it)
+        self.baseLaserPub.publish(l)
 
     #def listen(self):
     #    rospy.Subscriber("machineVision", String, callback)
@@ -156,8 +203,11 @@ if __name__ == '__main__':
     try:
         rospy.init_node('myName')
         grid = occupancyGrid()
-        grid.pub = rospy.Publisher('gridPub', OccupancyGrid, queue_size=10)
+        grid.pub = rospy.Publisher('map', OccupancyGrid, queue_size=10)
+        grid.cloud = rospy.Publisher('cloud_in', PointCloud2, queue_size=10)
+        grid.baseLaserPub = rospy.Publisher('base_scan2', LaserScan, queue_size=10)
         rospy.Subscriber("machineVision", String, grid.callback)
+        rospy.Subscriber("scan", LaserScan, grid.laserCallback)
         rospy.spin()
     except rospy.ROSInterruptException:
        pass                
